@@ -1,0 +1,89 @@
+{{ if eq .chezmoi.os "darwin" -}}
+#!/bin/bash
+brew bundle --no-lock --file=/dev/stdin <<EOF
+brew "gh"
+brew "zsh"
+brew "git"
+brew "gnupg"
+brew "yubikey-personalization"
+brew "gh"
+cask "google-chrome"
+cask "docker"
+cask "visual-studio-code"
+cask "slack"
+cask "insomnia"
+EOF
+{{ else if default .chezmoi.osRelease.idLike "" | splitList " " | has "debian" | or (eq .chezmoi.osRelease.id "debian") -}}
+#!/bin/bash
+sudo apt-get update
+# Install wget and other packages in default repositories
+sudo apt-get install -y \
+  wget \
+  gnupg2 \
+  gnupg-agent \
+  scdaemon \
+  pcscd \
+  zsh
+
+# Set up Git repository
+sudo add-apt-repository -y ppa:git-core/ppa
+sudo add-apt-repository -y ppa:yubico/stable
+
+# Set up GitHub CLI repository
+sudo curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+echo "deb [arch={{ .chezmoi.arch }} signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+
+# Set up Docker repository
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo "deb [arch={{ .chezmoi.arch }} signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/{{ .chezmoi.osRelease.id }} $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+{{ $vscode_install := list "amd64" "armhf" "arm64" | has .chezmoi.arch }}
+{{- if $vscode_install -}}
+# Download VSCode deb file
+vscode_deb=$(mktemp /tmp/code_latest-XXXXXXXXX_{{ .chezmoi.arch }}.deb)
+wget -O "$vscode_deb" https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-{{ .chezmoi.arch }}
+{{- end }}
+
+{{ $slack_install := eq .chezmoi.arch "amd64" }}
+{{- if $slack_install -}}
+# Download Slack deb file
+slack_deb=$(mktemp /tmp/slack_latest-XXXXXXXXX_{{ .chezmoi.arch }}.deb)
+wget -O "$vscode_deb" https://downloads.slack-edge.com/releases/linux/4.24.0/prod/x64/slack-desktop-4.24.0-amd64.deb
+{{- end }}
+
+{{ $insomnia_install := eq .chezmoi.arch "amd64" }}
+{{- if $insomnia_install -}}
+# Download Insomnia deb file
+insomnia_deb=$(mktemp /tmp/insomnia_latest-XXXXXXXXX.deb)
+wget -O $insomnia_deb https://updates.insomnia.rest/downloads/ubuntu/latest
+{{- end }}
+
+sudo apt-get update
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -yf \
+{{- if $vscode_install }}
+  "$vscode_deb" \
+{{- end -}}
+{{- if $insomnia_install }}
+  "$insomnia_deb" \
+{{- end }}
+{{- if $slack_install }}
+  "$slack_deb" \
+{{- end }}
+  docker-ce \
+  docker-ce-cli \
+  containerd.io \
+  gh \
+  git \
+  yubikey-personalization \
+  yubikey-manager
+
+{{ if $vscode_install -}}
+rm "$vscode_deb"
+{{- end }}
+{{- if $insomnia_install }}
+rm "$insomnia_deb"
+{{- end }}
+{{- if $slack_install }}
+rm "$slack_deb"
+{{- end }}
+{{- end }}

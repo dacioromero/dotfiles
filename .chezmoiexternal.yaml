@@ -1,0 +1,12 @@
+".oh-my-zsh":
+  type: git-repo
+  url: "https://github.com/ohmyzsh/ohmyzsh.git"
+".oh-my-zsh/custom/plugins/zsh-autosuggestions":
+  type: git-repo
+  url: "https://github.com/zsh-users/zsh-autosuggestions.git"
+# ".gnupg/gpg.conf":
+#   type: file
+#   url: "https://raw.githubusercontent.com/drduh/config/master/gpg.conf"
+# ".gnupg/gpg-agent.conf":
+#   type: file
+#   url: "https://raw.githubusercontent.com/drduh/config/master/gpg-agent.conf"

@@ -1,0 +1,22 @@
+[user]
+	name = {{ .name }}
+	email = {{ .email }}
+	signingkey = 55F601C4C03DA7490BE3A7FD8A876FD29358A925
+[core]
+	editor = code --wait
+[alias]
+	root = rev-parse --show-toplevel
+	ignore = "!gi() { curl -sL https://www.toptal.com/developers/gitignore/api/$@ ;}; gi"
+[pull]
+	rebase = true
+[filter "lfs"]
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+[diff]
+	tool = vscode
+[difftool "vscode"]
+	cmd = code --wait --diff $LOCAL $REMOTE
+[commit]
+	gpgsign = true
