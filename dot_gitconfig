@@ -1,7 +1,7 @@
 [user]
-	name = {{ .name }}
-	email = {{ .email }}
-	signingkey = 55F601C4C03DA7490BE3A7FD8A876FD29358A925
+	name = Dacio Romero
+	email = dacioromero@gmail.com
+	signingkey = 0x8A876FD29358A925
 [core]
 	editor = code --wait
 [alias]
