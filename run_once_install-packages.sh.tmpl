@@ -1,6 +1,7 @@
 {{ if eq .chezmoi.os "darwin" -}}
 #!/bin/bash
-set -euo pipefail
+set -euxo pipefail
+shopt -s extglob
 
 brew bundle --no-lock --file=/dev/stdin <<EOF
 brew "gh"
@@ -17,7 +18,7 @@ cask "insomnia"
 EOF
 {{ else if default .chezmoi.osRelease.idLike "" | splitList " " | has "debian" | or (eq .chezmoi.osRelease.id "debian") -}}
 #!/bin/bash
-set -euo pipefail
+set -euxo pipefail
 
 sudo apt-get update
 # Install wget and other packages in default repositories
@@ -29,22 +30,28 @@ sudo apt-get install -y \
   pcscd \
   zsh
 
-# Set up Git repository
+# Set up PPAs
 sudo add-apt-repository -yn ppa:git-core/ppa
 sudo add-apt-repository -yn ppa:yubico/stable
+sudo add-apt-repository -yn ppa:pipewire-debian/pipewire-upstream
 
 # Set up GitHub CLI repository
 sudo curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
 echo "deb [arch={{ .chezmoi.arch }} signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
 
 # Set up Docker repository
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor --yes -o /usr/share/keyrings/docker-archive-keyring.gpg
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor | sudo dd of=/usr/share/keyrings/docker-archive-keyring.gpg
 echo "deb [arch={{ .chezmoi.arch }} signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+# Set up Spotify repository
+sudo touch /usr/share/keyrings/spotify-archive-keyring.gpg
+curl -sS https://download.spotify.com/debian/pubkey_5E3C45D7B312C643.gpg | sudo gpg --no-default-keyring --keyring /usr/share/keyrings/spotify-archive-keyring.gpg --import
+echo "deb [arch={{ .chezmoi.arch }} signed-by=/usr/share/keyrings/spotify-archive-keyring.gpg] http://repository.spotify.com stable non-free" | sudo tee /etc/apt/sources.list.d/spotify.list > /dev/null
 
 {{ $vscode_install := list "amd64" "armhf" "arm64" | has .chezmoi.arch }}
 {{- if $vscode_install -}}
 # Download VSCode deb file
-{{ $vscode_arch := eq .chezmoi.arch "amd64" | ternary "x64" .chezmoi.arch }}
+{{- $vscode_arch := eq .chezmoi.arch "amd64" | ternary "x64" .chezmoi.arch }}
 vscode_deb=$(mktemp /tmp/code_latest-XXXXXXXXX_{{ $vscode_arch }}.deb)
 wget -nv -O "$vscode_deb" "https://code.visualstudio.com/sha/download?build=stable&os=linux-deb-{{ $vscode_arch }}"
 {{- end }}
@@ -60,8 +67,18 @@ wget -nv -O "$slack_deb" https://downloads.slack-edge.com/releases/linux/4.24.0/
 {{- if $insomnia_install -}}
 # Download Insomnia deb file
 insomnia_deb=$(mktemp /tmp/insomnia_latest-XXXXXXXXX.deb)
-wget -nv -O $insomnia_deb https://updates.insomnia.rest/downloads/ubuntu/latest
+wget -nv -O "$insomnia_deb" https://updates.insomnia.rest/downloads/ubuntu/latest
 {{- end }}
+
+{{ $zoom_install := eq .chezmoi.arch "amd64" }}
+{{- if $zoom_install -}}
+# Download Insomnia deb file
+zoom_deb=$(mktemp /tmp/insomnia_latest-XXXXXXXXX.deb)
+wget -nv -O "$zoom_deb" https://zoom.us/client/latest/zoom_amd64.deb
+{{- end }}
+
+# https://ubuntuhandbook.org/index.php/2021/05/enable-pipewire-audio-service-ubuntu-21-04/
+pipewire_deps=(pipewire gstreamer1.0-pipewire libpipewire-0.3-{0,dev,modules} libspa-0.2-{bluetooth,dev,jack,modules} pipewire{,-{audio-client-libraries,pulse,media-session,bin,locales,tests}})
 
 sudo apt-get update
 sudo apt-get install -yf \
@@ -74,13 +91,17 @@ sudo apt-get install -yf \
 {{- if $slack_install }}
   "$slack_deb" \
 {{- end }}
+{{- if $zoom_install }}
+  "$zoom_deb" \
+{{- end }}
   docker-ce \
   docker-ce-cli \
   containerd.io \
   gh \
   git \
   yubikey-personalization \
-  yubikey-manager
+  yubikey-manager \
+  "${pipewire_deps[@]}"
 
 {{ if $vscode_install -}}
 rm "$vscode_deb"
@@ -91,4 +112,30 @@ rm "$insomnia_deb"
 {{- if $slack_install }}
 rm "$slack_deb"
 {{- end }}
+{{- if $zoom_install }}
+rm "$zoom_deb"
+{{- end }}
+
+# Install NVM
+nvm_dir="$HOME/.nvm"
+nvm_url=https://github.com/nvm-sh/nvm.git
+if [ -d "$nvm_dir" ]; then
+  nvm_existing_remote=$(git -C "$nvm_dir" remote get-url origin)
+  if [ "$nvm_existing_remote" != "$nvm_url" ]; then
+    echo "NVM already exists in $nvm_dir but its remote is set incorrectly"
+    exit 1
+  else
+    git -C "$nvm_dir" fetch
+  fi
+else
+  git -C "$nvm_dir" clone https://github.com/nvm-sh/nvm.git "$nvm_dir"
+fi
+git -C "$nvm_dir" checkout "$(git -C "$nvm_dir" describe --abbrev=0 --tags --match "v[0-9]*" "$(git -C "$nvm_dir" rev-list --tags -1)")"
+
+# Install LTS NodeJS
+set +x
+\. "$nvm_dir/nvm.sh" > /dev/null
+nvm install --lts
+set -x
+
 {{- end }}
