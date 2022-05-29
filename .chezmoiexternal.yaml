@@ -4,9 +4,6 @@
 ".oh-my-zsh/custom/plugins/zsh-autosuggestions":
   type: git-repo
   url: "https://github.com/zsh-users/zsh-autosuggestions.git"
-# ".gnupg/gpg.conf":
-#   type: file
-#   url: "https://raw.githubusercontent.com/drduh/config/master/gpg.conf"
-# ".gnupg/gpg-agent.conf":
-#   type: file
-#   url: "https://raw.githubusercontent.com/drduh/config/master/gpg-agent.conf"
+".oh-my-zsh/custom/plugins/zsh-completions":
+  type: git-repo
+  url: "https://github.com/zsh-users/zsh-completions.git"
