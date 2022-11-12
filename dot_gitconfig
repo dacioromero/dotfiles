@@ -22,3 +22,7 @@
 	gpgsign = true
 [init]
 	defaultBranch = main
+[merge]
+	ff = no
+[advice]
+	detachedHead = false
